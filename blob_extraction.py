@@ -9,7 +9,18 @@ def load_data(filepath):
     return data
 
 
-def find_neighboring_labels(row, col, data, labels):
+def save_data(filepath, labels):
+    with open(filepath, 'w') as f:
+        for row in range(row_count):
+            for col in range(col_count):
+                if labels[row][col]:
+                    f.write(str(labels[row][col].value))
+                else:
+                    f.write('0')
+            f.write('\n')
+
+
+def find_neighboring_labels(row, col,  labels):
     west = (row, col - 1)
     northwest = (row - 1, col - 1)
     north = (row - 1, col)
@@ -19,7 +30,7 @@ def find_neighboring_labels(row, col, data, labels):
     neighboring_labels = []
     for neighbor in neighbors:
         if neighbor[0] >= 0 and neighbor[0] < row_count and neighbor[1] >= 0 and neighbor[1] < col_count:
-            if data[neighbor[0]][neighbor[1]]:
+            if labels[neighbor[0]][neighbor[1]]:
                 neighboring_labels.append(labels[neighbor[0]][neighbor[1]])
 
     return neighboring_labels
@@ -51,7 +62,7 @@ def two_pass(data):
 
     row_count = len(data)
     col_count = len(data[0])
-    labels = [[0] * col_count for _ in range(row_count)]
+    labels = data.copy()
     label_count = 0
 
     linked = {}
@@ -59,35 +70,31 @@ def two_pass(data):
     # First pass
     for row in range(row_count):
         for col in range(col_count):
-            if not data[row][col]:
+            if not labels[row][col]:
                 continue
 
-            neighboring_labels = find_neighboring_labels(
-                row, col, data, labels)
+            neighboring_labels = find_neighboring_labels(row, col,  labels)
             if not neighboring_labels:
                 label_count += 1
                 next_lable = Label(label_count)
                 labels[row][col] = next_lable
-
                 linked[next_lable.value] = next_lable
                 continue
 
             # Find the smallest label
-            labels[row][col] = find_min_neighboring_label(
-                neighboring_labels)
-
-            all_root_labels = [linked[label.value]
-                               for label in neighboring_labels]
+            labels[row][col] = find_min_neighboring_label(neighboring_labels)
+            all_root_labels = [find(label) for label in neighboring_labels]
+            min_root_labels = min(
+                all_root_labels, key=lambda label: label.value)
             for label in neighboring_labels:
-                linked[label.value] = find_min_neighboring_label(
-                    all_root_labels)
+                union(linked[label.value], min_root_labels)
 
     # Second pass
     for row in range(row_count):
         for col in range(col_count):
-            if not data[row][col]:
+            if not labels[row][col]:
                 continue
-            labels[row][col] = linked[labels[row][col].value]
+            labels[row][col] = find(labels[row][col])
 
     return labels
 
@@ -102,10 +109,8 @@ def union(x, y):
 
     if xRoot.value < yRoot.value:
         yRoot.parent = xRoot
-        return xRoot
     else:
         xRoot.parent = yRoot
-        return yRoot
 
     # x and y are not in same set, so we merge them
     # if xRoot.rank < yRoot.rank:
@@ -123,21 +128,10 @@ def find(x):
     return x.parent
 
 
-def save_data(filepath, data, labels):
-    with open(filepath, 'w') as f:
-        for row in range(row_count):
-            for col in range(col_count):
-                if data[row][col]:
-                    f.write(str(labels[row][col].value))
-                else:
-                    f.write('0')
-            f.write('\n')
-
-
 def main():
     data = load_data('./blob_extraction_input.txt')
     labels = two_pass(data)
-    save_data('./blob_extraction_output.txt',data, labels)
+    save_data('./blob_extraction_output.txt',  labels)
 
 
 main()
